@@ -70,26 +70,55 @@
     </div>
 
 <script>
-    let db; let itens = []; let isAdmin = false;
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-    const request = indexedDB.open("Drogasil_V39_DB", 1);
-    request.onupgradeneeded = e => { db = e.target.result; db.createObjectStore("produtos", { keyPath: "id" }); };
-    request.onsuccess = e => { db = e.target.result; carregarDados(); };
+<script>
+// 2. Sua configuração (O "RG" do seu banco de dados)
+const firebaseConfig = {
+  apiKey: "AIzaSyDuXw3AMPIjX1N3h2RWRo7APBjes_74peI",
+  authDomain: "cotacao-drogasil.firebaseapp.com",
+  projectId: "cotacao-drogasil",
+  storageBucket: "cotacao-drogasil.firebasestorage.app",
+  messagingSenderId: "293430041166",
+  appId: "1:293430041166:web:9fcb3236547e0407c0011f"
+};
 
-    function carregarDados() {
-        const tx = db.transaction(["produtos"], "readonly");
-        const store = tx.objectStore("produtos");
-        const req = store.get("lista_v39");
-        req.onsuccess = () => { itens = req.result ? req.result.dados : []; render(); };
-    }
+// 3. Inicializa a conexão
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-    function save() {
-        const tx = db.transaction(["produtos"], "readwrite");
-        const store = tx.objectStore("produtos");
-        store.put({ id: "lista_v39", dados: itens });
+let itens = [];
+let isAdmin = false;
+
+// 4. Função para buscar os preços na nuvem
+async function carregarDados() {
+    try {
+        const doc = await db.collection("cotacoes").doc("lista_v39").get();
+        if (doc.exists) {
+            itens = doc.data().dados || [];
+        }
         render();
+    } catch (e) {
+        console.error("Erro ao carregar:", e);
     }
+}
 
+// 5. Função para salvar os preços na nuvem
+async function save() {
+    try {
+        await db.collection("cotacoes").doc("lista_v39").set({
+            dados: itens
+        });
+        render();
+    } catch (e) {
+        alert("Erro ao salvar! Verifique sua internet.");
+    }
+}
+
+// 6. Inicia o sistema
+carregarDados();
+</script>
     function login() {
         if(document.getElementById('user').value === "admdrogasil" && document.getElementById('pass').value === "Drogasil@123") {
             isAdmin = true;
