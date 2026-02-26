@@ -21,7 +21,6 @@
         .img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
         
         input { width: 100%; margin: 4px 0; padding: 10px; border: 1px solid #eee; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-        /* Estilo para campos travados */
         input:disabled { background-color: #f5f5f5; color: #888; border: 1px solid #ddd; cursor: not-allowed; }
         
         .label-title { font-weight: bold; font-size: 11px; display: block; }
@@ -73,7 +72,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
 <script>
-// 2. Sua configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDuXw3AMPIjX1N3h2RWRo7APBjes_74peI",
   authDomain: "cotacao-drogasil.firebaseapp.com",
@@ -83,14 +81,12 @@ const firebaseConfig = {
   appId: "1:293430041166:web:9fcb3236547e0407c0011f"
 };
 
-// 3. Inicializa a conexão
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let itens = [];
 let isAdmin = false;
 
-// 4. Funções de Banco de Dados
 async function carregarDados() {
     try {
         const doc = await db.collection("cotacoes").doc("lista_v39").get();
@@ -105,21 +101,18 @@ async function carregarDados() {
 
 async function save() {
     try {
-        await db.collection("cotacoes").doc("lista_v39").set({
-            dados: itens
-        });
+        await db.collection("cotacoes").doc("lista_v39").set({ dados: itens });
         render();
     } catch (e) {
         alert("Erro ao salvar! Verifique sua internet.");
     }
 }
 
-// 5. Função de Login
 function login() {
-    const user = document.getElementById('user').value;
-    const pass = document.getElementById('pass').value;
+    const u = document.getElementById('user').value;
+    const p = document.getElementById('pass').value;
     
-    if(user === "admdrogasil" && pass === "Drogasil@123") {
+    if(u === "admdrogasil" && p === "Drogasil@123") {
         isAdmin = true;
         document.getElementById('lockBtn').style.display = 'none';
         document.getElementById('headerAdm').style.display = 'block';
@@ -131,7 +124,6 @@ function login() {
     }
 }
 
-// 6. Função de Renderização
 function render() {
     const d = document.getElementById('lista'); 
     d.innerHTML = '';
@@ -165,29 +157,31 @@ function render() {
                         </div>
                     </div>
                 </div>
+                
                 <div class="lmpm-row">
                     <span style="font-size:12px; font-weight:bold;">LMPM?</span>
-                    <button class="btn-opt btn-sim ${p.lmpm==='Sim'?'active':''}" onclick="itens[${i}].lmpm='Sim';save()">Sim</button>
-                    <button class="btn-opt btn-nao ${p.lmpm==='Não'?'active':''}" onclick="itens[${i}].lmpm='Não';save()">Não</button>
+                    <button class="btn-opt btn-sim ${p.lmpm==='Sim'?'active':''}" ${lock} onclick="itens[${i}].lmpm='Sim';save()">Sim</button>
+                    <button class="btn-opt btn-nao ${p.lmpm==='Não'?'active':''}" ${lock} onclick="itens[${i}].lmpm='Não';save()">Não</button>
                 </div>
+
                 <div class="aba-lmpm ${p.lmpm==='Sim'?'show':''}">
                     <div class="row-flex">
                         <div class="col">
                             <small>Qtd Mínima</small>
-                            <input type="number" value="${p.l_qtd||''}" onchange="itens[${i}].l_qtd=this.value;save()" placeholder="Ex: 3">
+                            <input type="number" ${lock} value="${p.l_qtd||''}" onchange="itens[${i}].l_qtd=this.value;save()">
                         </div>
                         <div class="col">
                             <small>Valor Desconto</small>
-                            <input type="number" step="0.01" value="${p.l_val||''}" onchange="itens[${i}].l_val=this.value;save()" placeholder="0,00">
+                            <input type="number" step="0.01" ${lock} value="${p.l_val||''}" onchange="itens[${i}].l_val=this.value;save()">
                         </div>
                     </div>
                 </div>
-                ${isAdmin ? `<button onclick="itens.splice(${i},1);save()" style="color:red; background:none; border:none; font-size:10px; margin-top:10px; width:100%; text-align:right;">EXCLUIR PRODUTO</button>` : ''}
+
+                ${isAdmin ? `<button onclick="if(confirm('Excluir?')){itens.splice(${i},1);save()}" style="color:red; background:none; border:none; font-size:10px; margin-top:10px; width:100%; text-align:right;">EXCLUIR PRODUTO</button>` : ''}
             </div>`;
     });
 }
 
-// 7. Processamento de Imagens e Extras
 function processarFoto(i, input) {
     if (!isAdmin || !input.files[0]) return;
     const reader = new FileReader();
@@ -207,14 +201,26 @@ function processarFoto(i, input) {
     reader.readAsDataURL(input.files[0]);
 }
 
-function add() { if(isAdmin) { itens.push({desc:'', foto:null, sku:'', meu:'', o:'', lmpm:'', tipo:'', l_qtd:'', l_val:''}); save(); } }
-function limparBanco() { if(isAdmin && confirm('Limpar todo o banco de dados?')){ itens=[]; save(); } }
-function baixarPDF() { html2pdf().from(document.getElementById('lista')).save('Relatorio_Cotação.pdf'); }
+function add() { 
+    if(isAdmin) { 
+        itens.push({desc:'', foto:null, sku:'', meu:0, o:0, lmpm:'Não', tipo:'PM', l_qtd:'', l_val:''}); 
+        save(); 
+    } 
+}
+
+function limparBanco() { if(isAdmin && confirm('Limpar tudo?')){ itens=[]; save(); } }
+
+function baixarPDF() { 
+    const element = document.getElementById('lista');
+    html2pdf().from(element).save('Relatorio_Cotação.pdf'); 
+}
+
 function baixarExcel() {
-    const ws = XLSX.utils.json_to_sheet(itens.map(p=>({"Produto":p.desc,"SKU":p.sku,"Valor RD":p.meu,"Conc":p.o,"Tipo":p.tipo,"LMPM":p.lmpm,"Qtd":p.l_qtd,"Valor C/ Desc":p.l_val})));
+    const ws = XLSX.utils.json_to_sheet(itens.map(p=>({"Produto":p.desc,"SKU":p.sku,"Valor RD":p.meu,"Conc":p.o,"Tipo":p.tipo})));
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Cotação"); XLSX.writeFile(wb, "Relatorio.xlsx");
 }
 
-// Inicialização
 carregarDados();
 </script>
+</body>
+</html>
