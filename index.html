@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotação Drogasil</title>
+    <title>Cotação Drogasil V44</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background-color: #a3c1ad; }
-        /* TELA DE LOGIN INICIAL */
         #tela-login-geral { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1b5e20; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .box-login { background: white; padding: 30px; border-radius: 20px; width: 80%; max-width: 300px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        .box-login h2 { color: #1b5e20; margin-bottom: 20px; }
+        .box-login { background: white; padding: 30px; border-radius: 20px; width: 80%; max-width: 300px; text-align: center; }
         input { width: 100%; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .btn-entrar { width: 100%; background: #1b5e20; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
-        /* CONTEÚDO DO APP (ESCONDIDO ATÉ LOGAR) */
         #app-body { display: none; padding: 10px; padding-top: 70px; padding-bottom: 120px; }
-        .btn-adm-lock { position: fixed; top: 15px; right: 15px; background: rgba(0,0,0,0.3); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; z-index: 1000; }
+        
+        /* CADEADO NO LADO ESQUERDO */
+        .btn-adm-lock { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.3); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; z-index: 1000; }
+        
         .header-adm { display: none; position: fixed; top: 0; left: 0; width: 100%; background: #fff; padding: 10px; z-index: 500; box-shadow: 0 2px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
         .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .img-box { width: 100%; height: 150px; border: 1px solid #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fafafa; margin: 10px 0; overflow: hidden; }
@@ -26,6 +26,13 @@
         .row { display: flex; gap: 10px; }
         .col { flex: 1; }
         .label { font-size: 11px; font-weight: bold; color: #1b5e20; margin-bottom: 4px; display: block; }
+        
+        /* ESTILO DA PORCENTAGEM */
+        .badge-porcentagem { display: block; font-size: 12px; font-weight: bold; margin-top: 5px; padding: 4px; border-radius: 4px; text-align: center; }
+        .mais-caro { background: #ffebee; color: #c62828; }
+        .mais-barato { background: #e8f5e9; color: #2e7d32; }
+        .neutro { background: #f5f5f5; color: #666; }
+
         .tipo-preco { display: flex; gap: 5px; margin-top: 5px; }
         .btn-t { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; background: #fff; font-size: 11px; font-weight: bold; }
         .btn-t.active { background: #1b5e20; color: #fff; }
@@ -41,7 +48,7 @@
 
 <div id="tela-login-geral">
     <div class="box-login">
-        <h2>Drogasil Login</h2>
+        <h2 style="color:#1b5e20">Drogasil</h2>
         <input type="text" id="u-login" placeholder="Usuário">
         <input type="password" id="s-login" placeholder="Senha">
         <button class="btn-entrar" onclick="verificarLogin()">ENTRAR NO SITE</button>
@@ -62,7 +69,6 @@
 </div>
 
 <script>
-// Firebase Config (O mesmo que você já ativou)
 const firebaseConfig = {
   apiKey: "AIzaSyDuXw3AMPIjX1N3h2RWRo7APBjes_74peI",
   authDomain: "cotacao-drogasil.firebaseapp.com",
@@ -106,25 +112,40 @@ async function salvar() {
     await db.collection("cotacoes").doc("lista_v39").set({ dados: itens });
 }
 
+// FUNÇÃO PARA CALCULAR A DIFERENÇA EM %
+function calcularDiferenca(precoRD, precoConcorrente) {
+    if(!precoRD || !precoConcorrente || precoRD <= 0) return { texto: '---', classe: 'neutro' };
+    const rd = parseFloat(precoRD);
+    const conc = parseFloat(precoConcorrente);
+    const dif = ((conc / rd) - 1) * 100;
+    
+    if(dif > 0) return { texto: `+${dif.toFixed(1)}% mais caro`, classe: 'mais-caro' };
+    if(dif < 0) return { texto: `${dif.toFixed(1)}% mais barato`, classe: 'mais-barato' };
+    return { texto: 'Preços iguais', classe: 'neutro' };
+}
+
 function render() {
     const d = document.getElementById('lista'); d.innerHTML = '';
     itens.forEach((p, i) => {
         const lock = isAdmin ? '' : 'disabled';
+        const difInfo = calcularDiferenca(p.meu, p.o);
+
         d.innerHTML += `
             <div class="card">
-                <input type="text" ${lock} value="${p.desc}" onchange="itens[${i}].desc=this.value;salvar()" placeholder="Produto">
+                <input type="text" ${lock} value="${p.desc}" onchange="itens[${i}].desc=this.value;salvar()" placeholder="Produto" style="font-weight:bold">
                 <div class="img-box" onclick="${isAdmin ? `document.getElementById('f${i}').click()` : ''}">
                     ${p.foto ? `<img src="${p.foto}">` : '<span>FOTO</span>'}
                 </div>
                 <input type="file" id="f${i}" style="display:none" onchange="subirFoto(${i}, this)">
                 <div class="row">
                     <div class="col">
-                        <span class="label">RD</span>
-                        <input type="number" step="0.01" ${lock} value="${p.meu}" onchange="itens[${i}].meu=this.value;salvar()">
+                        <span class="label">VALOR RD</span>
+                        <input type="number" step="0.01" ${lock} value="${p.meu}" onchange="itens[${i}].meu=this.value;salvar();render()">
                     </div>
                     <div class="col">
-                        <span class="label" style="color:red">CONCORRENTE</span>
-                        <input type="number" step="0.01" value="${p.o}" onchange="itens[${i}].o=this.value;salvar()">
+                        <span class="label" style="color:#c62828">CONCORRENTE</span>
+                        <input type="number" step="0.01" value="${p.o}" onchange="itens[${i}].o=this.value;salvar();render()">
+                        <div class="badge-porcentagem ${difInfo.classe}">${difInfo.texto}</div>
                         <div class="tipo-preco">
                             <button class="btn-t ${p.tipo==='PN'?'active':''}" onclick="itens[${i}].tipo='PN';salvar();render()">PN</button>
                             <button class="btn-t ${p.tipo==='PP'?'active':''}" onclick="itens[${i}].tipo='PP';salvar();render()">PP</button>
@@ -164,126 +185,6 @@ function subirFoto(i, input) {
 function limparTudo() { if(confirm('Limpar tudo?')){ itens=[]; render(); salvar(); } }
 function baixarPDF() { html2pdf().from(document.getElementById('lista')).save('Relatorio.pdf'); }
 
-</script>
-</body>
-</html>
-
-<script>
-// Configuração do seu Firebase que você ativou no modo de teste
-const firebaseConfig = {
-  apiKey: "AIzaSyDuXw3AMPIjX1N3h2RWRo7APBjes_74peI",
-  authDomain: "cotacao-drogasil.firebaseapp.com",
-  projectId: "cotacao-drogasil",
-  storageBucket: "cotacao-drogasil.firebasestorage.app",
-  messagingSenderId: "293430041166",
-  appId: "1:293430041166:web:9fcb3236547e0407c0011f"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-let itens = [];
-let isAdmin = false;
-
-// LOGIN DO COLETOR (TELA INICIAL)
-function loginGeral() {
-    const u = document.getElementById('user-geral').value;
-    const s = document.getElementById('pass-geral').value;
-    if(u === "Drogasil" && s === "Drogasil123") {
-        document.getElementById('tela-login-geral').style.display = 'none';
-        document.getElementById('conteudo-principal').style.display = 'block';
-        carregarDados();
-    } else { alert("Usuário ou Senha do Coletor inválidos!"); }
-}
-
-// LOGIN DO ADM (ÍCONE CADEADO)
-function loginAdm() {
-    const u = document.getElementById('user-adm').value;
-    const s = document.getElementById('pass-adm').value;
-    if(u === "admdrogasil" && s === "Drogasil@123") {
-        isAdmin = true;
-        document.getElementById('lockBtn').style.display = 'none';
-        document.getElementById('headerAdm').style.display = 'block';
-        document.getElementById('btnAdd').style.display = 'block';
-        document.getElementById('modal-adm').style.display = 'none';
-        render();
-    } else { alert("Acesso ADM negado!"); }
-}
-
-async function carregarDados() {
-    try {
-        const doc = await db.collection("cotacoes").doc("lista_v39").get();
-        if (doc.exists) { itens = doc.data().dados || []; }
-        render();
-    } catch (e) { console.error("Erro ao carregar", e); }
-}
-
-async function save() {
-    try {
-        await db.collection("cotacoes").doc("lista_v39").set({ dados: itens });
-    } catch (e) { console.log("Erro ao salvar no Firebase"); }
-}
-
-function render() {
-    const d = document.getElementById('lista'); 
-    d.innerHTML = '';
-    itens.forEach((p, i) => {
-        const lock = isAdmin ? '' : 'disabled';
-        d.innerHTML += `
-            <div class="card">
-                <input type="text" ${lock} onchange="itens[${i}].desc=this.value;save()" value="${p.desc||''}" placeholder="Produto" style="font-weight:bold; color:#1b5e20;">
-                <div class="img-box" onclick="${isAdmin ? `document.getElementById('f${i}').click()` : ''}">
-                    ${p.foto ? `<img src="${p.foto}">` : '<span style="color:#ccc">FOTO</span>'}
-                </div>
-                <input type="file" id="f${i}" style="display:none" onchange="processarFoto(${i}, this)">
-                <input type="text" ${lock} value="${p.sku||''}" onchange="itens[${i}].sku=this.value;save()" placeholder="SKU/EAN">
-                <div class="row-flex">
-                    <div class="col">
-                        <span class="label-p">VALOR RD</span>
-                        <input type="number" step="0.01" ${lock} value="${p.meu}" onchange="itens[${i}].meu=this.value;save()">
-                    </div>
-                    <div class="col">
-                        <span class="label-p" style="color:red">CONCORRÊNCIA</span>
-                        <input type="number" step="0.01" value="${p.o}" onchange="itens[${i}].o=this.value;save()">
-                        <div class="tipo-preco">
-                            <button class="btn-t ${p.tipo==='PN'?'active':''}" onclick="itens[${i}].tipo='PN';save();render()">PN</button>
-                            <button class="btn-t ${p.tipo==='PP'?'active':''}" onclick="itens[${i}].tipo='PP';save();render()">PP</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="lmpm-row">
-                    <span style="font-weight:bold;">LMPM?</span>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn-opt ${p.lmpm==='S'?'active-sim':''}" onclick="itens[${i}].lmpm='S';save();render()">SIM</button>
-                        <button class="btn-opt ${p.lmpm==='N'?'active-nao':''}" onclick="itens[${i}].lmpm='N';save();render()">NÃO</button>
-                    </div>
-                </div>
-                ${p.lmpm === 'S' ? `
-                    <div class="aba-lmpm">
-                        <div class="row-flex">
-                            <div class="col"><span class="label-p">QTD</span><input type="number" value="${p.qtd_lmpm||0}" onchange="itens[${i}].qtd_lmpm=this.value;save()"></div>
-                            <div class="col"><span class="label-p">PREÇO PROMO</span><input type="number" step="0.01" value="${p.preco_promo||0}" onchange="itens[${i}].preco_promo=this.value;save()"></div>
-                        </div>
-                    </div>
-                ` : ''}
-                ${isAdmin ? `<button onclick="if(confirm('Excluir?')){itens.splice(${i},1);save();render()}" style="color:red; border:none; background:none; width:100%; text-align:right; margin-top:15px; font-size:10px;">EXCLUIR</button>` : ''}
-            </div>`;
-    });
-}
-
-function add() {
-    itens.push({desc:'', foto:null, sku:'', meu:0, o:0, tipo:'PN', lmpm:'N', qtd_lmpm:0, preco_promo:0});
-    render(); save();
-    window.scrollTo(0, document.body.scrollHeight);
-}
-
-function processarFoto(i, input) {
-    const reader = new FileReader();
-    reader.onload = function(e) { itens[i].foto = e.target.result; render(); save(); };
-    reader.readAsDataURL(input.files[0]);
-}
-
-function limparBanco() { if(confirm('Limpar tudo?')){ itens=[]; render(); save(); } }
-function baixarPDF() { html2pdf().from(document.getElementById('lista')).save('Relatorio.pdf'); }
 </script>
 </body>
 </html>
