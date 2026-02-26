@@ -37,7 +37,9 @@
         .btn-nao.active { background: #f44336; color: white; border-color: #d32f2f; }
         .aba-lmpm { background: #f1f8e9; padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px dashed #4caf50; display: none; }
         .aba-lmpm.show { display: block; }
-        .btn-add { width: 100%; background: #1b5e20; color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; margin-bottom: 80px; display: none; }
+        
+        /* BOTÃO ADICIONAR - Estilo fixo no rodapé quando logado */
+        .btn-add { display: none; width: calc(100% - 20px); background: #1b5e20; color: white; border: none; padding: 18px; border-radius: 12px; font-weight: bold; position: fixed; bottom: 10px; left: 10px; z-index: 999; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
@@ -64,14 +66,15 @@
             </div>
         </div>
 
-        <div id="lista"></div>
-        <button class="btn-add" id="btnAdd" onclick="add()">+ NOVO PRODUTO</button>
+        <div id="lista" style="margin-bottom: 100px;"></div>
+        <button class="btn-add" id="btnAdd" onclick="add()">+ ADICIONAR NOVO PRODUTO</button>
     </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
 <script>
+// Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDuXw3AMPIjX1N3h2RWRo7APBjes_74peI",
   authDomain: "cotacao-drogasil.firebaseapp.com",
@@ -87,6 +90,7 @@ const db = firebase.firestore();
 let itens = [];
 let isAdmin = false;
 
+// Busca dados na nuvem
 async function carregarDados() {
     try {
         const doc = await db.collection("cotacoes").doc("lista_v39").get();
@@ -99,15 +103,17 @@ async function carregarDados() {
     }
 }
 
+// Salva dados na nuvem
 async function save() {
     try {
         await db.collection("cotacoes").doc("lista_v39").set({ dados: itens });
         render();
     } catch (e) {
-        alert("Erro ao salvar! Verifique sua internet.");
+        alert("Erro ao salvar! Verifique sua conexão.");
     }
 }
 
+// Função de Login que libera o botão na hora
 function login() {
     const u = document.getElementById('user').value;
     const p = document.getElementById('pass').value;
@@ -116,7 +122,7 @@ function login() {
         isAdmin = true;
         document.getElementById('lockBtn').style.display = 'none';
         document.getElementById('headerAdm').style.display = 'block';
-        document.getElementById('btnAdd').style.display = 'block';
+        document.getElementById('btnAdd').style.display = 'block'; // Ativa o botão aqui
         document.getElementById('modal-login').style.display = 'none';
         render();
     } else { 
@@ -124,6 +130,7 @@ function login() {
     }
 }
 
+// Renderiza os cards na tela
 function render() {
     const d = document.getElementById('lista'); 
     d.innerHTML = '';
@@ -138,11 +145,14 @@ function render() {
         d.innerHTML += `
             <div class="card">
                 <input type="text" style="font-weight:bold; color:#1b5e20;" ${lock} onchange="itens[${i}].desc=this.value;save()" value="${p.desc||''}" placeholder="Nome do Produto">
+                
                 <div class="img-box" ${isAdmin ? `onclick="document.getElementById('f${i}').click()"` : 'style="cursor:default;"'}>
-                    ${p.foto ? `<img src="${p.foto}">` : '<span style="color:#ccc; font-size:10px;">FOTO BLOQUEADA</span>'}
+                    ${p.foto ? `<img src="${p.foto}">` : '<span style="color:#ccc; font-size:10px;">CLIQUE PARA ADD FOTO</span>'}
                 </div>
                 <input type="file" id="f${i}" accept="image/*" style="display:none" onchange="processarFoto(${i}, this)">
+                
                 <input type="text" ${lock} value="${p.sku||''}" onchange="itens[${i}].sku=this.value;save()" placeholder="Código SKU">
+                
                 <div class="row-flex">
                     <div class="col">
                         <span class="label-title label-rd">VALOR RD</span>
@@ -157,31 +167,31 @@ function render() {
                         </div>
                     </div>
                 </div>
-                
-                <div class="lmpm-row">
-                    <span style="font-size:12px; font-weight:bold;">LMPM?</span>
-                    <button class="btn-opt btn-sim ${p.lmpm==='Sim'?'active':''}" ${lock} onclick="itens[${i}].lmpm='Sim';save()">Sim</button>
-                    <button class="btn-opt btn-nao ${p.lmpm==='Não'?'active':''}" ${lock} onclick="itens[${i}].lmpm='Não';save()">Não</button>
-                </div>
 
-                <div class="aba-lmpm ${p.lmpm==='Sim'?'show':''}">
-                    <div class="row-flex">
-                        <div class="col">
-                            <small>Qtd Mínima</small>
-                            <input type="number" ${lock} value="${p.l_qtd||''}" onchange="itens[${i}].l_qtd=this.value;save()">
-                        </div>
-                        <div class="col">
-                            <small>Valor Desconto</small>
-                            <input type="number" step="0.01" ${lock} value="${p.l_val||''}" onchange="itens[${i}].l_val=this.value;save()">
-                        </div>
-                    </div>
-                </div>
-
-                ${isAdmin ? `<button onclick="if(confirm('Excluir?')){itens.splice(${i},1);save()}" style="color:red; background:none; border:none; font-size:10px; margin-top:10px; width:100%; text-align:right;">EXCLUIR PRODUTO</button>` : ''}
+                ${isAdmin ? `<button onclick="if(confirm('Excluir?')){itens.splice(${i},1);save()}" style="color:red; background:none; border:none; font-size:10px; margin-top:15px; width:100%; text-align:right;">EXCLUIR PRODUTO</button>` : ''}
             </div>`;
     });
 }
 
+// Adiciona novo item na lista e salva
+function add() { 
+    if(isAdmin) { 
+        itens.push({
+            desc: '', 
+            foto: null, 
+            sku: '', 
+            meu: 0, 
+            o: 0, 
+            tipo: 'PM'
+        }); 
+        save();
+        window.scrollTo(0, document.body.scrollHeight); // Rola para o novo card
+    } else {
+        alert("Acesso restrito!");
+    }
+}
+
+// Processa imagem para não pesar no banco
 function processarFoto(i, input) {
     if (!isAdmin || !input.files[0]) return;
     const reader = new FileReader();
@@ -201,23 +211,11 @@ function processarFoto(i, input) {
     reader.readAsDataURL(input.files[0]);
 }
 
-function add() { 
-    if(isAdmin) { 
-        itens.push({desc:'', foto:null, sku:'', meu:0, o:0, lmpm:'Não', tipo:'PM', l_qtd:'', l_val:''}); 
-        save(); 
-    } 
-}
-
-function limparBanco() { if(isAdmin && confirm('Limpar tudo?')){ itens=[]; save(); } }
-
-function baixarPDF() { 
-    const element = document.getElementById('lista');
-    html2pdf().from(element).save('Relatorio_Cotação.pdf'); 
-}
-
+function limparBanco() { if(isAdmin && confirm('Apagar tudo?')){ itens=[]; save(); } }
+function baixarPDF() { html2pdf().from(document.getElementById('lista')).save('Relatorio.pdf'); }
 function baixarExcel() {
-    const ws = XLSX.utils.json_to_sheet(itens.map(p=>({"Produto":p.desc,"SKU":p.sku,"Valor RD":p.meu,"Conc":p.o,"Tipo":p.tipo})));
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Cotação"); XLSX.writeFile(wb, "Relatorio.xlsx");
+    const ws = XLSX.utils.json_to_sheet(itens.map(p=>({"Produto":p.desc,"SKU":p.sku,"RD":p.meu,"Conc":p.o})));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Dados"); XLSX.writeFile(wb, "Cotação.xlsx");
 }
 
 carregarDados();
