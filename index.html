@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotação V41 - Drogasil</title>
+    <title>Cotação V42 - Drogasil</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -25,16 +25,17 @@
         .col { flex: 1; }
         .label-p { font-size: 11px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 4px; }
         
-        /* BOTÕES PN e PP - Agora mais visíveis */
         .tipo-preco { display: flex; gap: 5px; margin-top: 8px; }
         .btn-t { flex: 1; padding: 10px 5px; border: 2px solid #ddd; border-radius: 6px; background: #fff; font-size: 12px; font-weight: bold; cursor: pointer; color: #666; }
         .btn-t.active { background: #1b5e20; color: #fff; border-color: #1b5e20; }
 
-        /* LMPM - Estilo idêntico ao que você tinha */
         .lmpm-row { display: flex; align-items: center; justify-content: space-between; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
         .btn-opt { padding: 12px 20px; border: 2px solid #ddd; border-radius: 8px; background: #fff; font-weight: bold; cursor: pointer; flex: 1; max-width: 80px; text-align: center; }
         .btn-opt.active-sim { background: #2e7d32; color: white; border-color: #1b5e20; }
         .btn-opt.active-nao { background: #d32f2f; color: white; border-color: #b71c1c; }
+
+        /* Estilo da Aba Expansível */
+        .aba-lmpm { background: #f1f8e9; padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px dashed #2e7d32; }
 
         .btn-add { display: none; width: 90%; background: #1b5e20; color: white; border: none; padding: 20px; border-radius: 15px; font-weight: bold; position: fixed; bottom: 20px; left: 5%; z-index: 999; box-shadow: 0 4px 15px rgba(0,0,0,0.4); font-size: 16px; }
     </style>
@@ -115,7 +116,7 @@ function render() {
                 <input type="text" ${lock} onchange="itens[${i}].desc=this.value;save()" value="${p.desc||''}" placeholder="Nome do Produto" style="font-weight:bold; color:#1b5e20; border-bottom: 2px solid #1b5e20;">
                 
                 <div class="img-box" onclick="${isAdmin ? `document.getElementById('f${i}').click()` : ''}">
-                    ${p.foto ? `<img src="${p.foto}">` : '<span style="color:#ccc; font-weight:bold;">CLIQUE PARA ADICIONAR FOTO</span>'}
+                    ${p.foto ? `<img src="${p.foto}">` : '<span style="color:#ccc; font-weight:bold;">FOTO DO PRODUTO</span>'}
                 </div>
                 <input type="file" id="f${i}" style="display:none" onchange="processarFoto(${i}, this)">
                 
@@ -144,22 +145,28 @@ function render() {
                     </div>
                 </div>
 
+                ${p.lmpm === 'S' ? `
+                    <div class="aba-lmpm">
+                        <div class="row-flex">
+                            <div class="col">
+                                <span class="label-p">QUANTIDADE</span>
+                                <input type="number" value="${p.qtd_lmpm || 0}" onchange="itens[${i}].qtd_lmpm=this.value;save()" placeholder="Ex: 3">
+                            </div>
+                            <div class="col">
+                                <span class="label-p">VALOR UN. PROMO</span>
+                                <input type="number" step="0.01" value="${p.preco_promo || 0}" onchange="itens[${i}].preco_promo=this.value;save()" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
                 ${isAdmin ? `<button onclick="if(confirm('Excluir este produto?')){itens.splice(${i},1);save();render()}" style="color:red; border:none; background:none; width:100%; text-align:right; margin-top:20px; font-size:11px; font-weight:bold; cursor:pointer;">[ EXCLUIR PRODUTO ]</button>` : ''}
             </div>`;
     });
 }
 
 function add() {
-    // Adiciona o item com todos os campos necessários para os botões aparecerem
-    itens.push({
-        desc: '', 
-        foto: null, 
-        sku: '', 
-        meu: 0, 
-        o: 0, 
-        tipo: 'PN', 
-        lmpm: 'N'
-    });
+    itens.push({desc:'', foto:null, sku:'', meu:0, o:0, tipo:'PN', lmpm:'N', qtd_lmpm:0, preco_promo:0});
     render(); 
     save();
     window.scrollTo(0, document.body.scrollHeight);
@@ -175,7 +182,7 @@ function processarFoto(i, input) {
     reader.readAsDataURL(input.files[0]);
 }
 
-function limparBanco() { if(confirm('Deseja apagar todos os produtos da lista?')){ itens=[]; render(); save(); } }
+function limparBanco() { if(confirm('Deseja apagar todos os produtos?')){ itens=[]; render(); save(); } }
 function baixarPDF() { html2pdf().from(document.getElementById('lista')).save('Relatorio_Cotacao.pdf'); }
 
 carregarDados();
