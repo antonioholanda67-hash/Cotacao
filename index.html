@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotação Drogasil V44</title>
+    <title>Cotação Drogasil V45</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <style>
@@ -13,26 +14,27 @@
         .box-login { background: white; padding: 30px; border-radius: 20px; width: 80%; max-width: 300px; text-align: center; }
         input { width: 100%; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .btn-entrar { width: 100%; background: #1b5e20; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        
         #app-body { display: none; padding: 10px; padding-top: 70px; padding-bottom: 120px; }
-        
-        /* CADEADO NO LADO ESQUERDO */
         .btn-adm-lock { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.3); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; z-index: 1000; }
         
+        /* HEADER ADM REESTRUTURADO */
         .header-adm { display: none; position: fixed; top: 0; left: 0; width: 100%; background: #fff; padding: 10px; z-index: 500; box-shadow: 0 2px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .menu-exportar { position: relative; display: inline-block; flex: 1; }
+        .dropdown-content { display: none; position: absolute; background-color: #f9f9f9; min-width: 120px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; border-radius: 8px; overflow: hidden; }
+        .dropdown-content button { color: black; padding: 12px 16px; text-decoration: none; display: block; border: none; width: 100%; text-align: left; background: white; cursor: pointer; font-size: 14px; }
+        .dropdown-content button:hover { background-color: #f1f1f1; }
+        .menu-exportar:hover .dropdown-content { display: block; }
+
         .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .img-box { width: 100%; height: 150px; border: 1px solid #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fafafa; margin: 10px 0; overflow: hidden; }
         .img-box img { max-width: 100%; max-height: 100%; }
         .row { display: flex; gap: 10px; }
         .col { flex: 1; }
         .label { font-size: 11px; font-weight: bold; color: #1b5e20; margin-bottom: 4px; display: block; }
-        
-        /* ESTILO DA PORCENTAGEM */
         .badge-porcentagem { display: block; font-size: 12px; font-weight: bold; margin-top: 5px; padding: 4px; border-radius: 4px; text-align: center; }
         .mais-caro { background: #ffebee; color: #c62828; }
         .mais-barato { background: #e8f5e9; color: #2e7d32; }
         .neutro { background: #f5f5f5; color: #666; }
-
         .tipo-preco { display: flex; gap: 5px; margin-top: 5px; }
         .btn-t { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; background: #fff; font-size: 11px; font-weight: bold; }
         .btn-t.active { background: #1b5e20; color: #fff; }
@@ -57,13 +59,22 @@
 
 <div id="app-body">
     <button class="btn-adm-lock" onclick="pedirSenhaAdm()">🔒</button>
+    
     <div class="header-adm" id="headerAdm">
         <div style="display:flex; gap:5px;">
-            <button onclick="baixarPDF()" style="flex:1; background:#2c3e50; color:white; border:none; padding:10px; border-radius:8px;">PDF</button>
-            <button onclick="limparTudo()" style="flex:1; background:#c0392b; color:white; border:none; padding:10px; border-radius:8px;">LIMPAR</button>
-            <button onclick="location.reload()" style="padding:10px; border:none; border-radius:8px;">SAIR</button>
+            <div class="menu-exportar">
+                <button style="width:100%; background:#2c3e50; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">EXPORTAR ▼</button>
+                <div class="dropdown-content">
+                    <button onclick="baixarPDF()">📄 Gerar PDF</button>
+                    <button onclick="baixarExcel()">📊 Gerar Excel</button>
+                </div>
+            </div>
+            
+            <button onclick="limparTudo()" style="flex:1; background:#c0392b; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">LIMPAR</button>
+            <button onclick="location.reload()" style="padding:10px; border:none; border-radius:8px; background:#ddd;">SAIR</button>
         </div>
     </div>
+
     <div id="lista"></div>
     <button class="btn-add" id="btnAdd" onclick="add()">+ NOVO PRODUTO</button>
 </div>
@@ -112,16 +123,14 @@ async function salvar() {
     await db.collection("cotacoes").doc("lista_v39").set({ dados: itens });
 }
 
-// FUNÇÃO PARA CALCULAR A DIFERENÇA EM %
 function calcularDiferenca(precoRD, precoConcorrente) {
-    if(!precoRD || !precoConcorrente || precoRD <= 0) return { texto: '---', classe: 'neutro' };
+    if(!precoRD || !precoConcorrente || precoRD <= 0) return { texto: '---', num: 0, classe: 'neutro' };
     const rd = parseFloat(precoRD);
     const conc = parseFloat(precoConcorrente);
     const dif = ((conc / rd) - 1) * 100;
-    
-    if(dif > 0) return { texto: `+${dif.toFixed(1)}% mais caro`, classe: 'mais-caro' };
-    if(dif < 0) return { texto: `${dif.toFixed(1)}% mais barato`, classe: 'mais-barato' };
-    return { texto: 'Preços iguais', classe: 'neutro' };
+    if(dif > 0) return { texto: `+${dif.toFixed(1)}% caro`, num: dif.toFixed(1), classe: 'mais-caro' };
+    if(dif < 0) return { texto: `${dif.toFixed(1)}% barato`, num: dif.toFixed(1), classe: 'mais-barato' };
+    return { texto: 'Igual', num: 0, classe: 'neutro' };
 }
 
 function render() {
@@ -129,7 +138,6 @@ function render() {
     itens.forEach((p, i) => {
         const lock = isAdmin ? '' : 'disabled';
         const difInfo = calcularDiferenca(p.meu, p.o);
-
         d.innerHTML += `
             <div class="card">
                 <input type="text" ${lock} value="${p.desc}" onchange="itens[${i}].desc=this.value;salvar()" placeholder="Produto" style="font-weight:bold">
@@ -139,7 +147,7 @@ function render() {
                 <input type="file" id="f${i}" style="display:none" onchange="subirFoto(${i}, this)">
                 <div class="row">
                     <div class="col">
-                        <span class="label">VALOR RD</span>
+                        <span class="label">RD</span>
                         <input type="number" step="0.01" ${lock} value="${p.meu}" onchange="itens[${i}].meu=this.value;salvar();render()">
                     </div>
                     <div class="col">
@@ -183,8 +191,31 @@ function subirFoto(i, input) {
 }
 
 function limparTudo() { if(confirm('Limpar tudo?')){ itens=[]; render(); salvar(); } }
-function baixarPDF() { html2pdf().from(document.getElementById('lista')).save('Relatorio.pdf'); }
 
+function baixarPDF() { 
+    const element = document.getElementById('lista');
+    html2pdf().from(element).save('Cotação_Drogasil.pdf'); 
+}
+
+function baixarExcel() {
+    const dadosExcel = itens.map(p => {
+        const dif = calcularDiferenca(p.meu, p.o);
+        return {
+            "Produto": p.desc,
+            "Preço RD": p.meu,
+            "Preço Concorrente": p.o,
+            "Diferença %": dif.num + "%",
+            "Tipo": p.tipo,
+            "LMPM": p.lmpm === 'S' ? "Sim" : "Não",
+            "Qtd LMPM": p.qtd || 0,
+            "Preço Promo LMPM": p.pp || 0
+        };
+    });
+    const ws = XLSX.utils.json_to_sheet(dadosExcel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Cotação");
+    XLSX.utils.writeFile(wb, "Cotação_Drogasil.xlsx");
+}
 </script>
 </body>
 </html>
